@@ -17,7 +17,36 @@ afterEach(async () => {
 });
 
 describe("Vite plugin", () => {
-  it("bundles .email.tsx templates without React", async () => {
+  it("accepts the normal React JSX render API", async () => {
+    fixture = await buildViteFixture<FixtureExports>({
+      prefix: "react-email-compiler-vite-jsx-",
+      entry: "entry.tsx",
+      files: {
+        "Welcome.email.tsx": basicEmailFixtureFiles["Welcome.email.tsx"],
+        "entry.tsx": `
+          import { render } from "@react-email/render";
+          import { Welcome } from "./Welcome.email";
+          export const html = await render(<Welcome name="<React user>" />);
+          export const text = await render(<Welcome name="<React user>" />, { plainText: true });
+        `,
+      },
+      config: {
+        resolve: {
+          alias: {
+            "react/jsx-dev-runtime": resolve("node_modules/react/jsx-dev-runtime.js"),
+          },
+        },
+        plugins: [ReactEmailCompiler({ runtimeModule: resolve("src/runtime.ts") })],
+      },
+    });
+
+    expect(fixture.exports.html).toContain("Hello &lt;React user&gt;");
+    expect(fixture.exports.text).toBe("Hello <React user>");
+    expect(fixture.code).not.toContain("@react-email/render");
+    expect(fixture.code).not.toMatch(/from\s*["']react-email["']/);
+  });
+
+  it("bundles the direct invocation API without React", async () => {
     fixture = await buildViteFixture<FixtureExports>({
       prefix: "react-email-compiler-vite-",
       files: basicEmailFixtureFiles,

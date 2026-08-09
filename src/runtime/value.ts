@@ -29,6 +29,24 @@ function isCompiledEmailValue(value: unknown): value is CompiledEmailValue {
   );
 }
 
+interface CompiledEmailElement {
+  type: CompiledTemplate<unknown>;
+  props: unknown;
+}
+
+function isCompiledEmailElement(value: unknown): value is CompiledEmailElement {
+  if (!value || typeof value !== "object") return false;
+  const type = (value as Partial<CompiledEmailElement>).type;
+  return typeof type === "function" && typeof type.__reactEmailText === "function";
+}
+
+function resolveCompiledEmailValue(value: unknown): CompiledEmailValue | undefined {
+  if (isCompiledEmailValue(value)) return value;
+  if (!isCompiledEmailElement(value)) return undefined;
+  const rendered = value.type(value.props);
+  return isCompiledEmailValue(rendered) ? rendered : undefined;
+}
+
 const renderedTextByHtml = new Map<string, string>();
 
 function rememberRenderedText(html: string, text: string): void {
@@ -44,16 +62,17 @@ export async function renderEmailValue(
   value: unknown,
   options: { plainText?: boolean; pretty?: boolean } = {},
 ): Promise<string> {
-  if (!isCompiledEmailValue(value)) {
+  const compiled = resolveCompiledEmailValue(value);
+  if (!compiled) {
     throw new TypeError(
-      "render() received an uncompiled value. Call an AOT-compiled .email.tsx component directly.",
+      "render() received an uncompiled value. Pass an AOT-compiled .email.tsx component directly or as JSX.",
     );
   }
   if (options.pretty) {
     throw new TypeError("The AOT render replacement does not support pretty output");
   }
-  const html = String(value);
-  const text = value[COMPILED_EMAIL_TEXT]();
+  const html = String(compiled);
+  const text = compiled[COMPILED_EMAIL_TEXT]();
   if (options.plainText) return text;
   rememberRenderedText(html, text);
   return html;
