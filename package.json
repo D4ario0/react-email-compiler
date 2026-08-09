@@ -1,7 +1,16 @@
 {
   "name": "react-email-compiler",
   "version": "0.1.0",
-  "description": "Compile React Email TSX templates into React-free string functions",
+  "description": "AOT compiler for React Email that generates React-free HTML and plain-text functions",
+  "author": "D4ario0",
+  "homepage": "https://github.com/D4ario0/react-email-compiler#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/D4ario0/react-email-compiler.git"
+  },
+  "bugs": {
+    "url": "https://github.com/D4ario0/react-email-compiler/issues"
+  },
   "type": "module",
   "exports": {
     ".": {
@@ -55,10 +64,19 @@
   },
   "keywords": [
     "react-email",
+    "react",
+    "next",
+    "resend",
+    "aws-ses",
+    "aot",
+    "compiler",
+    "email",
+    "transactional-email",
     "vite",
     "rollup",
-    "unplugin",
-    "email"
+    "rolldown",
+    "esbuild",
+    "unplugin"
   ],
   "license": "GPL-2.0-only",
   "packageManager": "pnpm@10.33.0",
