@@ -1,6 +1,6 @@
 {
   "name": "react-email-compiler",
-  "version": "0.1.0",
+  "version": "0.1.1-alpha.0",
   "description": "AOT compiler for React Email that generates React-free HTML and plain-text functions",
   "author": "D4ario0",
   "homepage": "https://github.com/D4ario0/react-email-compiler#readme",
