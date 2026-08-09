@@ -1,9 +1,6 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { render, toPlainText } from "@react-email/render";
 import * as React from "react";
-import { build, type Rollup } from "vite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import ReactEmailCompiler from "../src/vite";
 import { CodeBlockMatrixEmail } from "./fixtures/diverse/CodeBlockMatrix.email";
@@ -17,6 +14,8 @@ import { RemainingPrimitivesEmail } from "./fixtures/diverse/RemainingPrimitives
 import { SecurityAlertEmail } from "./fixtures/diverse/SecurityAlert.email";
 import { StaticMaintenanceEmail } from "./fixtures/diverse/StaticMaintenance.email";
 import { StaticRichContentEmail } from "./fixtures/diverse/StaticRichContent.email";
+import { buildViteFixture, type BuiltViteFixture } from "./helpers/build-fixture";
+import { normalizeHtml } from "./helpers/normalize-html";
 
 const fixtureDirectory = resolve("test/fixtures/diverse");
 const fixtures = {
@@ -155,9 +154,7 @@ const fixtures = {
 type Rendered = { html: string; text: string };
 type FixtureName = keyof typeof fixtures;
 
-let temporaryDirectory: string;
-let compiled: Record<FixtureName, Rendered>;
-let bundleCode: string;
+let builtFixture: BuiltViteFixture<{ compiled: Record<FixtureName, Rendered> }>;
 
 function normalizeSemanticText(text: string): string {
   return text
@@ -167,23 +164,7 @@ function normalizeSemanticText(text: string): string {
     .trim();
 }
 
-function normalizeHtml(html: string): string {
-  return html
-    .replaceAll("<!--$-->", "")
-    .replaceAll("<!--/$-->", "")
-    .replaceAll("<!--html-->", "")
-    .replaceAll("<!--head-->", "")
-    .replaceAll("<!--body-->", "")
-    .replaceAll("<!-- -->", "")
-    .replace(/style="([^"]*)"/g, (_match, declarations: string) => {
-      const sorted = declarations.split(";").filter(Boolean).sort().join(";");
-      return `style="${sorted}"`;
-    });
-}
-
 beforeAll(async () => {
-  temporaryDirectory = await mkdtemp(join(tmpdir(), "react-email-diverse-fixtures-"));
-  const entry = join(temporaryDirectory, "entry.ts");
   const imports = ([
     ["ReceiptEmail", "Receipt.email.tsx"],
     ["NewsletterEmail", "Newsletter.email.tsx"],
@@ -199,70 +180,50 @@ beforeAll(async () => {
   ] as const)
     .map(([name, file]) => `import { ${name} } from ${JSON.stringify(join(fixtureDirectory, file))};`)
     .join("\n");
-
   const serializableProps = Object.fromEntries(
     Object.entries(fixtures).map(([name, fixture]) => [name, fixture.props]),
   );
-  await writeFile(
-    entry,
-    `${imports}
-      import { renderCompiledEmail, renderCompiledEmailText } from ${JSON.stringify(resolve("src/runtime.ts"))};
-      const props = ${JSON.stringify(serializableProps)};
-      const renderBoth = (Template, value) => ({
-        html: renderCompiledEmail(Template, value),
-        text: renderCompiledEmailText(Template, value),
-      });
-      export const compiled = {
-        receipt: renderBoth(ReceiptEmail, props.receipt),
-        newsletter: renderBoth(NewsletterEmail, props.newsletter),
-        securityRecognized: renderBoth(SecurityAlertEmail, props.securityRecognized),
-        securityUnknown: renderBoth(SecurityAlertEmail, props.securityUnknown),
-        international: renderBoth(InternationalEmail, props.international),
-        languageMatrix: renderBoth(LanguageMatrixEmail, props.languageMatrix),
-        remainingPrimitives: renderBoth(RemainingPrimitivesEmail, props.remainingPrimitives),
-        primitiveMatrixDefaults: renderBoth(PrimitiveMatrixEmail, props.primitiveMatrixDefaults),
-        primitiveMatrixOverrides: renderBoth(PrimitiveMatrixEmail, props.primitiveMatrixOverrides),
-        markdownUpstream: renderBoth(MarkdownUpstreamEmail, props.markdownUpstream),
-        codeBlockMatrix: renderBoth(CodeBlockMatrixEmail, props.codeBlockMatrix),
-        staticMaintenance: renderBoth(StaticMaintenanceEmail, props.staticMaintenance),
-        staticRichContent: renderBoth(StaticRichContentEmail, props.staticRichContent),
-      };
-    `,
-  );
 
-  const result = await build({
-    root: temporaryDirectory,
-    configFile: false,
-    logLevel: "silent",
-    plugins: [
-      ReactEmailCompiler({
-        runtimeModule: resolve("src/runtime.ts"),
-      }),
-    ],
-    build: {
-      write: false,
-      lib: { entry, formats: ["es"] },
+  builtFixture = await buildViteFixture({
+    prefix: "react-email-diverse-fixtures-",
+    files: {
+      "entry.ts": `${imports}
+        import { render, toPlainText } from "@react-email/render";
+        const props = ${JSON.stringify(serializableProps)};
+        const renderBoth = async (Template, value) => {
+          const html = await render(Template(value));
+          return { html, text: toPlainText(html) };
+        };
+        export const compiled = {
+          receipt: await renderBoth(ReceiptEmail, props.receipt),
+          newsletter: await renderBoth(NewsletterEmail, props.newsletter),
+          securityRecognized: await renderBoth(SecurityAlertEmail, props.securityRecognized),
+          securityUnknown: await renderBoth(SecurityAlertEmail, props.securityUnknown),
+          international: await renderBoth(InternationalEmail, props.international),
+          languageMatrix: await renderBoth(LanguageMatrixEmail, props.languageMatrix),
+          remainingPrimitives: await renderBoth(RemainingPrimitivesEmail, props.remainingPrimitives),
+          primitiveMatrixDefaults: await renderBoth(PrimitiveMatrixEmail, props.primitiveMatrixDefaults),
+          primitiveMatrixOverrides: await renderBoth(PrimitiveMatrixEmail, props.primitiveMatrixOverrides),
+          markdownUpstream: await renderBoth(MarkdownUpstreamEmail, props.markdownUpstream),
+          codeBlockMatrix: await renderBoth(CodeBlockMatrixEmail, props.codeBlockMatrix),
+          staticMaintenance: await renderBoth(StaticMaintenanceEmail, props.staticMaintenance),
+          staticRichContent: await renderBoth(StaticRichContentEmail, props.staticRichContent),
+        };
+      `,
+    },
+    config: {
+      plugins: [ReactEmailCompiler({ runtimeModule: resolve("src/runtime.ts") })],
     },
   });
-
-  const outputs = (Array.isArray(result) ? result : [result]) as Rollup.RollupOutput[];
-  const chunk = outputs
-    .flatMap((output) => output.output)
-    .find((output): output is Rollup.OutputChunk => output.type === "chunk");
-  if (!chunk) throw new Error("Vite did not produce a diverse fixture chunk");
-
-  bundleCode = chunk.code;
-  const url = `data:text/javascript;base64,${Buffer.from(bundleCode).toString("base64")}`;
-  compiled = ((await import(url)) as { compiled: Record<FixtureName, Rendered> }).compiled;
 });
 
 afterAll(async () => {
-  if (temporaryDirectory) await rm(temporaryDirectory, { recursive: true });
+  await builtFixture?.cleanup();
 });
 
 describe("diverse template corpus", () => {
   it("produces one React-free bundle for the complete fixture corpus", () => {
-    expect(bundleCode).not.toMatch(
+    expect(builtFixture.code).not.toMatch(
       /from\s*["'](?:react|react-dom|react-email|@react-email\/render)/,
     );
   });
@@ -278,12 +239,12 @@ describe("diverse template corpus", () => {
         ),
       );
 
-      expect(normalizeHtml(compiled[name].html)).toBe(normalizeHtml(expectedHtml));
+      expect(normalizeHtml(builtFixture.exports.compiled[name].html)).toBe(normalizeHtml(expectedHtml));
       const expectedText = toPlainText(expectedHtml);
       if ("textParity" in fixture && fixture.textParity === "semantic") {
-        expect(normalizeSemanticText(compiled[name].text)).toBe(normalizeSemanticText(expectedText));
+        expect(normalizeSemanticText(builtFixture.exports.compiled[name].text)).toBe(normalizeSemanticText(expectedText));
       } else {
-        expect(compiled[name].text).toBe(expectedText);
+        expect(builtFixture.exports.compiled[name].text).toBe(expectedText);
       }
     });
   }

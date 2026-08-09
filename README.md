@@ -69,44 +69,30 @@ The authored component is replaced under its original module ID. No generated so
 
 ## Benchmarks
 
-The benchmark first verifies HTML and plain-text parity, then compares React Email with the generated AOT renderer. Run it with:
+A full 500 ms run across 10 representative templates produced:
+
+| Metric | Result |
+| --- | ---: |
+| Median fixture runtime speedup | **29.1×** |
+| Geometric-mean runtime speedup | **45.2×** |
+| Median p95 speedup | **26.2×** |
+| Runtime speedup range | **10.8×–531.7×** |
+| Raw corpus bundle reduction | **51.5×** |
+| Gzip corpus bundle reduction | **61.3×** |
+| Bundled module reduction | **6.9×** |
+| React runtime in compiled output | **No** |
+
+The corpus covers minimal text, authentication, receipts, newsletters, conditional alerts, Unicode/RTL, dynamic primitives, Markdown, CodeBlock, and a 100-record loop. Every fixture verifies HTML and plain-text parity before timing.
+
+The broader corpus also exposes the AOT tradeoff: its parser-heavy cold build took **1,197 ms** versus **492 ms** for the React Email reference. Reusing the compilation session reduced the AOT build to **895 ms**, approximately **25% faster than its cold build**. Runtime parsing, syntax highlighting, Tailwind processing, and React rendering are moved into that build work.
+
+Run the suite with:
 
 ```sh
 pnpm bench
 ```
 
-A full 500 ms run on Node.js 24.19.0, Linux x64 produced:
-
-### Runtime rendering
-
-| Fixture             | Renderer     | Operations/sec |     Mean |      p95 | Throughput improvement |
-| ------------------- | ------------ | -------------: | -------: | -------: | ---------------------: |
-| Account email       | React Email  |            353 | 2.831 ms | 4.648 ms |               baseline |
-| Account email       | AOT compiled |         12,610 | 0.079 ms | 0.133 ms |              **35.7×** |
-| 100-record incident | React Email  |            157 | 6.384 ms | 9.830 ms |               baseline |
-| 100-record incident | AOT compiled |          3,977 | 0.252 ms | 0.442 ms |              **25.3×** |
-
-The account fixture reduced p95 latency by approximately **35×**. The 100-record fixture reduced p95 latency by approximately **22×**. Both paths use the public async `render()` API, including Promise and compatibility-wrapper overhead.
-
-### Vite SSR output
-
-| Output                         |  Build | Raw JavaScript |      Gzip | Chunks | Modules | React runtime |
-| ------------------------------ | -----: | -------------: | --------: | -----: | ------: | ------------: |
-| React Email, top-level import  | 316 ms |    1,496.46 kB | 446.66 kB |      2 |      95 |           Yes |
-| AOT compiled, top-level import | 239 ms |       17.55 kB |   6.00 kB |      1 |       9 |            No |
-| React Email, dynamic import    | 266 ms |    1,496.64 kB | 446.79 kB |      3 |      95 |           Yes |
-| AOT compiled, dynamic import   | 123 ms |       17.64 kB |   6.05 kB |      2 |       9 |            No |
-
-For this fixture, AOT compilation produced approximately:
-
-- **85× less raw JavaScript**
-- **74× less gzip JavaScript**
-- **10.6× fewer bundled modules**
-- **24% shorter top-level build time**
-- **54% shorter dynamic-import build time**
-- no React, React DOM, React Email, Prism, or Marked runtime graph
-
-Results vary by hardware, Node version, filesystem caches, and template complexity. Machine-readable output is written to `bench/results/latest.json`; see [`bench/README.md`](./bench/README.md) for methodology.
+See [BENCHMARK.md](./BENCHMARK.md) for per-fixture results, bundle tables, methodology, build measurements, limitations, and reproduction commands.
 
 ## How does it work?
 
@@ -127,6 +113,13 @@ React-free functions: props → { html, text }
 Static structure is evaluated once during the build. Runtime props, conditionals, nested `.map()` calls, escaping, and dynamic attributes become direct JavaScript rather than React elements interpreted by a server renderer. A shared compilation session caches Tailwind results and primitive shells across the module graph.
 
 This is the compiler trade: spend work once at build time so every production render loads less code and performs less work.
+
+## Honorable mentions
+
+- **zod-compiler** — an important reference for treating an ergonomic TypeScript API as a compiler frontend and replacing runtime interpretation with generated code.
+- **Rich Harris and Svelte's compilation model** — the clearest precedent for preserving declarative component DX while moving framework work into compilation and emitting small, imperative runtime programs.
+
+These are architectural inspirations and acknowledgements, not claims of source-code derivation or compatibility.
 
 ## Status
 
@@ -664,10 +657,3 @@ Run the complete verification suite:
 ```sh
 pnpm check
 ```
-
-## Honorable mentions
-
-- **zod-compiler** — an important reference for treating an ergonomic TypeScript API as a compiler frontend and replacing runtime interpretation with generated code.
-- **Rich Harris and Svelte's compilation model** — the clearest precedent for preserving declarative component DX while moving framework work into compilation and emitting small, imperative runtime programs.
-
-These are architectural inspirations and acknowledgements, not claims of source-code derivation or compatibility.

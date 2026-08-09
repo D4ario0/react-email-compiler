@@ -1,47 +1,57 @@
-# Benchmarks
+# Benchmark runner
 
-The benchmark suite compares React Email with compiled templates across two dimensions:
+The benchmark runner compares React Email with the AOT renderer across a 10-fixture corpus.
 
-1. Runtime HTML and plain-text rendering throughput.
-2. Vite SSR output for top-level and dynamic imports.
+It measures:
 
-Fixtures:
+- runtime p50, p95, mean latency, and operations per second
+- per-fixture median, p95, and throughput speedups
+- median and geometric-mean speedup across fixtures
+- top-level and dynamic-import bundle output
+- raw and gzip JavaScript size
+- chunk and module counts
+- React runtime presence
+- cold and warm build duration
 
-- `Account`: a small Tailwind transactional email.
-- `Incident100`: a Tailwind email containing 100 dynamically rendered records and Unicode content.
+HTML and plain-text parity are verified before any fixture is timed.
 
-Output parity is verified before timing begins. A benchmark fails rather than comparing renderers that produce different HTML or text.
+## Commands
 
-## Run
+Run the complete 500 ms suite:
 
 ```sh
 pnpm bench
 ```
 
-For a quick local run:
+Run a shorter smoke suite:
 
 ```sh
 pnpm bench:quick
 ```
 
-Change the minimum measurement duration:
+Run focused modes:
+
+```sh
+pnpm bench:runtime
+pnpm bench:build
+```
+
+Override the measurement window:
 
 ```sh
 BENCH_DURATION_MS=1000 pnpm bench
 ```
 
-Results are printed as tables and written to:
+`bench:runtime` still builds the equivalent entries because runtime measurements execute production bundles. `bench:build` verifies parity and records bundle/build results but skips the repeated runtime timing loops.
+
+## Results
+
+Machine-readable results are written to:
 
 ```text
 bench/results/latest.json
 ```
 
-Bundle measurements include:
+The JSON file is ignored because results depend on hardware, Node.js, operating system, dependency versions, and filesystem cache state.
 
-- build duration
-- raw and gzip JavaScript size
-- chunk count
-- bundled module count
-- React runtime detection
-
-Results depend on hardware, Node version, and operating system. Do not compare files produced on different machines as if they were controlled performance regressions.
+See [`../BENCHMARK.md`](../BENCHMARK.md) for the committed representative results, fixture descriptions, methodology, aggregate calculations, and limitations.

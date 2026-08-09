@@ -5,6 +5,7 @@ import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { compileEmailModule } from "../src/compiler";
 import * as runtime from "../src/runtime";
+import { normalizeHtml } from "./helpers/normalize-html";
 
 function evaluateCommonJs(code: string) {
   const javascript = ts.transpileModule(code, {
@@ -24,16 +25,6 @@ function evaluateCommonJs(code: string) {
     module,
   );
   return module.exports;
-}
-
-function normalizeReactHtml(html: string): string {
-  return html
-    .replaceAll("<!--$-->", "")
-    .replaceAll("<!--/$-->", "")
-    .replaceAll("<!--html-->", "")
-    .replaceAll("<!--head-->", "")
-    .replaceAll("<!--body-->", "")
-    .replaceAll("<!-- -->", "");
 }
 
 type CompatibilityProps = {
@@ -116,7 +107,7 @@ describe("upstream @react-email/render compatibility", () => {
     const expectedHtml = await render(<ReferenceCompatibility {...props} />);
     const actualHtml = String(generated.CompatibilityEmail(props));
 
-    expect(normalizeReactHtml(actualHtml)).toBe(normalizeReactHtml(expectedHtml));
+    expect(normalizeHtml(actualHtml)).toBe(normalizeHtml(expectedHtml));
     expect(actualHtml).not.toContain('rel="preload"');
     expect(runtime.renderCompiledEmailText(generated.CompatibilityEmail, props)).toBe(
       toPlainText(expectedHtml),
@@ -142,7 +133,7 @@ describe("upstream @react-email/render compatibility", () => {
     const actualHtml = String(generated.LargeEmail({ items }));
     const expectedHtml = await render(<ReferenceLarge />);
 
-    expect(normalizeReactHtml(actualHtml)).toBe(normalizeReactHtml(expectedHtml));
+    expect(normalizeHtml(actualHtml)).toBe(normalizeHtml(expectedHtml));
     expect(actualHtml).not.toMatch(/<!--\$|<!--\/\$|<!-- -->/);
     expect(runtime.renderCompiledEmailText(generated.LargeEmail, { items })).toBe(
       toPlainText(expectedHtml),

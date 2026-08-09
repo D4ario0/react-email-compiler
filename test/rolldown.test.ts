@@ -1,55 +1,40 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { rolldown } from "rolldown";
 import { afterEach, describe, expect, it } from "vitest";
 import ReactEmailCompiler from "../src/rolldown";
+import { basicEmailFixtureFiles } from "./helpers/basic-email-fixture";
+import {
+  createTemporaryFixture,
+  importJavaScript,
+  type TemporaryFixture,
+} from "./helpers/build-fixture";
 
-const temporaryDirectories: string[] = [];
+let fixture: TemporaryFixture | undefined;
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })));
+  await fixture?.cleanup();
+  fixture = undefined;
 });
 
 describe("Rolldown/tsdown plugin", () => {
   it("bundles .email.tsx templates without React", async () => {
-    const root = await mkdtemp(join(tmpdir(), "react-email-compiler-rolldown-"));
-    temporaryDirectories.push(root);
-    const entry = join(root, "main.ts");
-
-    await writeFile(
-      join(root, "Welcome.email.tsx"),
-      `
-        import { Html, Text } from "react-email";
-        export function Welcome({ name }: { name: string }) {
-          return <Html><Text>Hello {name}</Text></Html>;
-        }
-      `,
-    );
-    await writeFile(
-      entry,
-      `
-        import { render } from "@react-email/render";
-        import { Welcome } from "./Welcome.email";
-        export const html = await render(Welcome({ name: "<Alex>" }));
-      `,
+    fixture = await createTemporaryFixture(
+      "react-email-compiler-rolldown-",
+      basicEmailFixtureFiles,
     );
 
     const bundle = await rolldown({
-      input: entry,
-      plugins: [
-        ReactEmailCompiler({
-          runtimeModule: resolve("src/runtime.ts"),
-        }),
-      ],
+      input: fixture.path("entry.ts"),
+      plugins: [ReactEmailCompiler({ runtimeModule: resolve("src/runtime.ts") })],
     });
     const result = await bundle.generate({ format: "es" });
     const chunk = result.output.find((output) => output.type === "chunk");
-    expect(chunk).toBeDefined();
-    expect(chunk!.code).not.toMatch(/from\s*["'](?:react|react-dom|react-email|@react-email\/render)/);
+    if (!chunk) throw new Error("Rolldown did not emit an entry chunk");
+    expect(chunk.code).not.toMatch(
+      /from\s*["'](?:react|react-dom|react-email|@react-email\/render)/,
+    );
 
-    const url = `data:text/javascript;base64,${Buffer.from(chunk!.code).toString("base64")}`;
-    const module = (await import(url)) as { html: string };
+    const module = await importJavaScript<{ html: string }>(chunk.code);
     expect(module.html).toContain("Hello &lt;Alex&gt;");
   });
 });

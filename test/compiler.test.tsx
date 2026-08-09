@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { compileEmailModule, EmailCompilerError } from "../src/compiler";
 import { CompilationSession } from "../src/session";
 import * as runtime from "../src/runtime";
+import { normalizeHtml } from "./helpers/normalize-html";
 
 const tailwindConfig = {
   theme: {
@@ -36,19 +37,6 @@ function evaluateCommonJs(code: string) {
 
   new Function("require", "exports", "module", javascript)(load, module.exports, module);
   return module.exports;
-}
-
-function normalizeRenderedHtml(html: string): string {
-  return html
-    .replaceAll("<!--$-->", "")
-    .replaceAll("<!--/$-->", "")
-    .replaceAll("<!--html-->", "")
-    .replaceAll("<!-- -->", "")
-    .replace("<head></head>", "")
-    .replace(/style="([^"]*)"/g, (_match, declarations: string) => {
-      const sorted = declarations.split(";").filter(Boolean).sort().join(";");
-      return `style="${sorted}"`;
-    });
 }
 
 function ReferenceTemplate({ name, items }: { name: string; items: string[] }) {
@@ -114,7 +102,9 @@ describe("compileEmailModule", () => {
 
     const actual = String(generated.Template(props));
     const expected = await render(<ReferenceTemplate {...props} />);
-    expect(normalizeRenderedHtml(actual)).toBe(normalizeRenderedHtml(expected));
+    expect(normalizeHtml(actual, { removeEmptyHead: true })).toBe(
+      normalizeHtml(expected, { removeEmptyHead: true }),
+    );
     expect(runtime.renderCompiledEmailText(generated.Template, props)).toBe(toPlainText(expected));
   });
 

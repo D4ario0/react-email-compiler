@@ -1,20 +1,21 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { compileEmailModule } from "../src/compiler";
 import { evaluateEmailModule, renderEmailModuleExport } from "../src/evaluator";
+import { createTemporaryFixture, type TemporaryFixture } from "./helpers/build-fixture";
 
-const temporaryDirectories: string[] = [];
+let fixture: TemporaryFixture | undefined;
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true })));
+  await fixture?.cleanup();
+  fixture = undefined;
 });
 
 describe("build-time module evaluator", () => {
   it("executes an opted-in module in a worker and discovers its exports", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "react-email-evaluator-"));
-    temporaryDirectories.push(directory);
+    fixture = await createTemporaryFixture("react-email-evaluator-");
+    const directory = fixture.root;
     const marker = join(directory, "executed.txt");
     const id = join(directory, "Welcome.email.tsx");
     const source = `
@@ -47,8 +48,8 @@ describe("build-time module evaluator", () => {
   });
 
   it("renders an exported component with the real React Email frontend", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "react-email-evaluator-"));
-    temporaryDirectories.push(directory);
+    fixture = await createTemporaryFixture("react-email-evaluator-");
+    const directory = fixture.root;
     const id = join(directory, "Rendered.email.tsx");
     const source = `
       import { Html, Text } from "react-email";
@@ -71,8 +72,8 @@ describe("build-time module evaluator", () => {
   });
 
   it("propagates errors from statically pre-rendered components", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "react-email-evaluator-"));
-    temporaryDirectories.push(directory);
+    fixture = await createTemporaryFixture("react-email-evaluator-");
+    const directory = fixture.root;
     const id = join(directory, "Throwing.email.tsx");
     const source = `
       export function ThrowingEmail() {
@@ -89,8 +90,8 @@ describe("build-time module evaluator", () => {
   });
 
   it("exposes discovery metadata through the compiler result", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "react-email-evaluator-"));
-    temporaryDirectories.push(directory);
+    fixture = await createTemporaryFixture("react-email-evaluator-");
+    const directory = fixture.root;
     const id = join(directory, "Static.email.tsx");
     const source = `
       import { Text } from "react-email";

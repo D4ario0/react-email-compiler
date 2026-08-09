@@ -10,7 +10,8 @@ for (const adapter of adapters) {
 }
 
 const runtime = await import(new URL("../dist/runtime.mjs", import.meta.url));
-const result = runtime.renderCompiledEmail(() => "<p>ok</p>", {});
+const value = runtime.compiledEmailValue("<p>ok</p>", () => "ok");
+const result = await runtime.renderEmailValue(value);
 if (result !== "<p>ok</p>") throw new Error("Internal runtime build is invalid");
 
 const runtimeSource = await readFile(new URL("../dist/runtime.mjs", import.meta.url), "utf8");
