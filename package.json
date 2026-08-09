@@ -1,6 +1,6 @@
 {
   "name": "react-email-compiler",
-  "version": "0.1.1-alpha.0",
+  "version": "0.1.1-alpha.1",
   "description": "AOT compiler for React Email that generates React-free HTML and plain-text functions",
   "author": "D4ario0",
   "homepage": "https://github.com/D4ario0/react-email-compiler#readme",
@@ -81,12 +81,17 @@
     "unplugin"
   ],
   "license": "GPL-2.0-only",
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
   "packageManager": "pnpm@10.33.0",
   "sideEffects": false,
   "engines": {
     "node": ">=20"
   },
   "peerDependencies": {
+    "@react-email/render": ">=2.1.0 <2.2.0",
     "react": ">=18 <20",
     "react-dom": ">=18 <20",
     "react-email": ">=6.9.0 <6.10.0"
