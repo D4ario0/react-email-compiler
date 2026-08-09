@@ -1,0 +1,97 @@
+{
+  "name": "react-email-compiler",
+  "version": "0.1.0",
+  "description": "Compile React Email TSX templates into React-free string functions",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.mts",
+      "import": "./dist/vite.mjs"
+    },
+    "./rollup": {
+      "types": "./dist/rollup.d.mts",
+      "import": "./dist/rollup.mjs"
+    },
+    "./rolldown": {
+      "types": "./dist/rolldown.d.mts",
+      "import": "./dist/rolldown.mjs"
+    },
+    "./esbuild": {
+      "types": "./dist/esbuild.d.mts",
+      "import": "./dist/esbuild.mjs"
+    },
+    "./webpack": {
+      "types": "./dist/webpack.d.mts",
+      "import": "./dist/webpack.mjs"
+    },
+    "./rspack": {
+      "types": "./dist/rspack.d.mts",
+      "import": "./dist/rspack.mjs"
+    },
+    "./bun": {
+      "types": "./dist/bun.d.mts",
+      "import": "./dist/bun.mjs"
+    },
+    "./farm": {
+      "types": "./dist/farm.d.mts",
+      "import": "./dist/farm.mjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "bench": "pnpm build && node --expose-gc bench/run.mjs",
+    "bench:quick": "pnpm build && BENCH_DURATION_MS=100 node --expose-gc bench/run.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:dist"
+  },
+  "keywords": [
+    "react-email",
+    "vite",
+    "rollup",
+    "unplugin",
+    "email"
+  ],
+  "license": "GPL-2.0-only",
+  "packageManager": "pnpm@10.33.0",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "react": ">=18 <20",
+    "react-dom": ">=18 <20",
+    "react-email": ">=6.9.0 <6.10.0"
+  },
+  "dependencies": {
+    "@babel/generator": "^8.0.0",
+    "@babel/parser": "^8.0.4",
+    "@babel/traverse": "^8.0.4",
+    "@babel/types": "^8.0.4",
+    "esbuild": "^0.28.2",
+    "unplugin": "^3.3.0"
+  },
+  "devDependencies": {
+    "@react-email/render": "^2.1.0",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "csstype": "^3.2.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-email": "^6.9.2",
+    "rolldown": "^1.2.3",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  }
+}
